@@ -1,0 +1,88 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: green
+  labels:
+    istio-injection: enabled
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: green-configmap
+  namespace: green
+data:
+  index.html: |
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>This is green</title>
+        </head>
+        <style>
+          h1   {color: green;}
+        </style>
+        <body>
+            <h1>This Is Green!!!</h1>
+        </body>
+        </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: green-app
+  namespace: green
+  labels:
+    app: green
+spec:
+  selector:
+    matchLabels:
+      app: green
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: green
+    spec:
+      containers:
+      - name: green
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: index-files
+          mountPath: /usr/share/nginx/html/
+        resources:
+           limits:
+             memory: 100Mi
+             cpu: 250m
+           requests:
+             memory: 50Mi
+             cpu: 100m
+      volumes:
+      - name: index-files
+        configMap:
+          name: green-configmap
+          items:
+          - key: "index.html"
+            path: "index.html"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: green-service
+  namespace: green
+spec:
+  ports:
+    - port: 80
+      protocol: TCP
+  selector:
+    app: green
+
+
+
+
+
+
+
+

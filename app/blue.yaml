@@ -1,0 +1,81 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: blue
+  labels:
+    istio-injection: enabled
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: blue-configmap
+  namespace: blue
+data:
+  index.html: |
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8">
+            <title>This is blue</title>
+        </head>
+        <style>
+          h1   {color: blue;}
+        </style>
+        <body>
+            <h1>This Is Blue!!!</h1>
+        </body>
+        </html>
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: blue-app
+  namespace: blue
+  labels:
+    app: blue
+spec:
+  selector:
+    matchLabels:
+      app: blue
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: blue
+    spec:
+      containers:
+      - name: blue
+        image: nginx:latest
+        ports:
+        - containerPort: 80
+        volumeMounts:
+        - name: index-files
+          mountPath: /usr/share/nginx/html/
+        resources:
+           limits:
+             memory: 100Mi
+             cpu: 250m
+           requests:
+             memory: 50Mi
+             cpu: 100m
+      volumes:
+      - name: index-files
+        configMap:
+          name: blue-configmap
+          items:
+          - key: "index.html"
+            path: "index.html"
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: blue-service
+  namespace: blue
+spec:
+  ports:
+    - port: 80
+      protocol: TCP
+  selector:
+    app: blue

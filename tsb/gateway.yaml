@@ -1,0 +1,39 @@
+apiVersion: gateway.tsb.tetrate.io/v2
+kind: IngressGateway
+Metadata:
+  organization: tetrate
+  name: green-gw-ingress
+  group: green-gw
+  workspace: blue-green-app
+  tenant: tetrate
+spec:
+  workloadSelector:
+    namespace: green
+    labels:
+      app: green-gateway
+  http:
+  - name: blue-green
+    port: 80
+    hostname: "blue-green.com"
+    routing:
+      rules:
+      - match:
+        - uri:
+            prefix: /green
+        modify:
+          rewrite:
+            uri: "/"
+            authority: ""
+        route:
+          host: "green/green-service.green.svc.cluster.local"
+          port: 80
+      - match:
+        - uri:
+            prefix: /blue
+        modify:
+          rewrite:
+            uri: "/"
+            authority: ""
+        route:
+          host: "blue/blue-service.blue.svc.cluster.local"
+          port: 80

@@ -1,0 +1,9 @@
+apiVersion: install.tetrate.io/v1alpha1
+kind: IngressGateway
+metadata:
+  namespace: green
+  name: green-gateway
+spec:
+  kubeSpec:
+    service:
+      type: LoadBalancer

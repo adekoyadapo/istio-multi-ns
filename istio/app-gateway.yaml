@@ -1,0 +1,67 @@
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: green-blue-igw
+  namespace: green
+  annotations:
+    kubernetes.io/ingress.class: "istio"
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: green-service
+            port: 
+              number: 80
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: Gateway
+metadata:
+  name: green-blue-gw
+  namespace: green
+spec:
+  selector:
+    istio: ingressgateway # use istio default controller
+  servers:
+  - port:
+      number: 80
+      name: http
+      protocol: HTTP
+    hosts:
+    - "*"
+---
+apiVersion: networking.istio.io/v1alpha3
+kind: VirtualService
+metadata:
+  name: green-blue-vs
+  namespace: green
+spec:
+  hosts:
+  - "*"
+  gateways:
+  - green-blue-gw
+  http:
+  - match:
+    - uri:
+        prefix: /green
+    rewrite:
+      uri: "/"
+    route:
+    - destination:
+        host: green-service.green.svc.cluster.local
+        port:
+          number: 80
+  - match:
+    - uri:
+        prefix: /blue
+    rewrite:
+      uri: "/"
+    route:
+    - destination:
+        host: blue-service.blue.svc.cluster.local
+        port:
+          number: 80
