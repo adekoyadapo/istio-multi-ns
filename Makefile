@@ -12,12 +12,14 @@ istio-check: prereq infra metallb deploy_istio deploy_app deploy_gw get_gw_ip te
 tsb-check: infra tsb-infra deploy_app deploy_app_tsb tsb_test_app
 
 prereq:
-	@echo "istalling prereq"
-	@echo "installing getmesh..."
-	curl -sL https://istio.tetratelabs.io/getmesh/install.sh | bash
+	@echo "istalling prereq...";
+	@echo "installing getmesh...\n";
+	@curl -sL https://istio.tetratelabs.io/getmesh/install.sh | bash
 
 
 infra: check-env
+	@echo "===========================";
+	@echo "Creating k8s cluster...\n";
 	minikube start \
 	--kubernetes-version=${k8s} \
 	--memory=${mem} \
@@ -27,8 +29,11 @@ infra: check-env
 	@sleep 10;
 
 metallb:
+	@echo "==========================="
+	@echo "Getting the cluster IP and creating loadBalancer IP ranges...\n";
 	$(eval metallbip :=$(shell infra/nextip.sh))
 	@envsubst < infra/metallb-config.yaml | kubectl apply -f -;
+	@echo "loadBalancer IP ranges configured...\n";	
 
 tsb-infra: metallb
 	tctl install image-sync --username $(username) --apikey $(apikey) --registry $(registry);
@@ -36,21 +41,32 @@ tsb-infra: metallb
 	@kubectl wait --for=condition=available --timeout=300s --all deployments -n istio-system;
 
 deploy_istio: check-env
-	export PATH=$PATH:$HOME/.getmesh/bin/getmesh;
-	getmesh fetch --version=$(istio_version) --flavor=istio
-	getmesh istioctl install --set profile=$(istio_profile) -y
+	@echo "===========================";
+	@export PATH=$PATH:$HOME/.getmesh/bin/getmesh;
+	@echo "installing istio...\n"
+	@getmesh fetch --version=$(istio_version) --flavor=istio
+	@getmesh istioctl install --set profile=$(istio_profile) -y
+	@echo "waiting for istio...\n"
 	@kubectl wait --for=condition=available --timeout=300s --all deployments -n istio-system;
 	@sleep 60;
 
 deploy_app:
-	kubectl apply -f app/;
+	@echo "===========================";
+	@echo "Deploying APP...\n";
+	@kubectl apply -f app/;
+	@echo;
+	@echo "Waiting for APP...\n";
 	@sleep 5;
 	@kubectl wait --for=condition=available --timeout=300s --all deployments -n green;
 	@kubectl wait --for=condition=available --timeout=300s --all deployments -n blue;
 
 deploy_gw:
-	kubectl apply -f istio/app-gateway.yaml;
-	sleep 15;
+	@echo "===========================";
+	@echo "Deploying gateway...\n";
+	@kubectl apply -f istio/app-gateway.yaml;
+	@echo
+	@echo "Waiting for gateway...\n";	
+	@sleep 15;
 
 deploy_app_tsb:
 	@kubectl apply -f tsb/ingress.yaml;
@@ -64,7 +80,9 @@ deploy_app_tsb:
 
 get_gw_ip:
 	$(eval ingress :=$(shell kubectl -n green get ingresses.networking.k8s.io --no-headers -o custom-columns=:metadata.name))
-	istio/waitforip.sh ${ingress} green
+	@echo "===========================";
+	@echo "Getting gateway IP...\n";
+	@istio/waitforip.sh ${ingress} green
 
 get_tsb_svc:
 	$(eval gw :=$(shell kubectl -n green get svc -l platform.tsb.tetrate.io/plane=data --no-headers -o custom-columns=:metadata.name))
@@ -75,7 +93,10 @@ get_tsb_svc:
 test_app:
 	$(eval ingress :=$(shell kubectl -n green get ingresses.networking.k8s.io --no-headers -o custom-columns=:metadata.name))
 	$(eval gwIP :=$(shell kubectl -n green get ingresses.networking.k8s.io ${ingress} -o jsonpath='{.status.loadBalancer.ingress[0].ip}'))
+	@echo "===========================";
+	@echo "Checking APP endpoints...\n";
 	@echo "Checking prefix path http://${gwIP}/blue "
+	@echo;
 	@curl -s http://${gwIP}/blue --resolve "${hostname}:80:${gwIP}" | grep "Blue";
 	-@sleep 3;
 	@echo;
