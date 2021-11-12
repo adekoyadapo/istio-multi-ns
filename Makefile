@@ -69,14 +69,16 @@ deploy_gw:
 	@sleep 15;
 
 deploy_app_tsb:
+	@echo "===========================";
+	@echo "Creating TSB objects...\n";
 	@kubectl apply -f tsb/ingress.yaml;
 	@sleep 10;
-	tctl login --org tetrate --username admin --password 'admin' --tenant tetrate;
-	sleep 5;
-	tctl apply -f tsb/tenant.yaml;
-	tctl apply -f tsb/workspace.yaml;
-	tctl apply -f tsb/group.yaml;
-	tctl apply -f tsb/gateway.yaml;
+	@tctl login --org tetrate --username admin --password 'admin' --tenant tetrate;
+	@sleep 5;
+	@tctl apply -f tsb/tenant.yaml;
+	@tctl apply -f tsb/workspace.yaml;
+	@tctl apply -f tsb/group.yaml;
+	@tctl apply -f tsb/gateway.yaml;
 
 get_gw_ip:
 	$(eval ingress :=$(shell kubectl -n green get ingresses.networking.k8s.io --no-headers -o custom-columns=:metadata.name))
@@ -85,9 +87,12 @@ get_gw_ip:
 	@istio/waitforip.sh ${ingress} green
 
 get_tsb_svc:
+	@echo "===========================";
+	@echo "Validating external IP...\n";
 	$(eval gw :=$(shell kubectl -n green get svc -l platform.tsb.tetrate.io/plane=data --no-headers -o custom-columns=:metadata.name))
 	@tsb/waitforip.sh ${gw} green
-	-@echo "waiting for TSB resources to be deployed..."
+	@echo " ";
+	-@echo "waiting for TSB resources to be deployed...\n"
 	@sleep 60;
 
 test_app:
@@ -98,17 +103,19 @@ test_app:
 	@echo "Checking prefix path http://${gwIP}/blue "
 	@echo;
 	@curl -s http://${gwIP}/blue --resolve "${hostname}:80:${gwIP}" | grep "Blue";
-	-@sleep 3;
 	@echo;
 	@echo "Checking prefix path http://${gwIP}/green "
+	@echo;
 	@curl -s http://${gwIP}/green | grep "Green";
 
 tsb_test_app: get_tsb_svc
+	@echo "===========================";
+	@echo "Validating APP routes...\n";
 	$(eval gw :=$(shell kubectl -n green get svc -l platform.tsb.tetrate.io/plane=data --no-headers -o custom-columns=:metadata.name))
 	$(eval vs :=$(shell kubectl -n green get virtualservice --no-headers -o custom-columns=:metadata.name))
 	$(eval hostname :=$(shell kubectl -n green get virtualservice ${vs}  -o jsonpath='{.spec.hosts}' | tr -d '"[]"'))	
 	$(eval gwIP :=$(shell kubectl -n green get service ${gw} -o jsonpath='{.status.loadBalancer.ingress[0].ip}'))
-	@echo "Checking prefix path http://${hostname}/blue "
+	@echo "Checking prefix path http://${hostname}/blue \n"
 	@curl -s http://${hostname}/blue --resolve "${hostname}:80:${gwIP}" | grep Blue;
 	-@sleep 2;
 	@echo;
